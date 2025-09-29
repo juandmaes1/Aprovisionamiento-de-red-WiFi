@@ -93,30 +93,7 @@ El portal de configuración está disponible en http://192.168.4.1/ cuando el di
 
 ## Endpoints HTTP
 
-- GET /status
-Devuelve estado de conexión y SSID actual:
-  ```bash
- # En modo AP
-curl http://192.168.4.1/status
 
-# En modo STA (usar IP asignada por el router)
-curl http://<ip_router_asignada>/status
-
-  ```
-  Responde con el nombre y cantidad del pedido o error si el Circuit Breaker está abierto.
-  --> Para terminos practicos y de simulación el Circuit Breaker toma como un error la recepcion de una 'laptop' como tipo de producto.
-
-- **GET /inventario**  
-  Obtiene el inventario actualizado por el Consumidor:
-  ```bash
-  curl http://localhost:8080/inventario
-  ```
-
-Se puede acceder a las interfaces (UI's) en:
-- http://localhost:8080/test.html
-- http://localhost:8080/inventario.html
-
----
 
 ## Diagrama de Arquitectura
 
@@ -124,31 +101,95 @@ Se puede acceder a las interfaces (UI's) en:
 
 ---
 
+Endpoints HTTP
+
+GET /status
+Devuelve estado de conexión y SSID actual.
+Ejemplo (modo AP): curl http://192.168.4.1/status
+
+Ejemplo (modo STA): curl http://<ip_asignada_por_router>/status
+
+POST /config
+Guarda credenciales (SSID y password) y reinicia el dispositivo. Acepta application/x-www-form-urlencoded o application/json.
+Ejemplo URL-encoded: curl -X POST http://192.168.4.1/config
+ -d "ssid=MiRed&password=Secreta123"
+Ejemplo JSON: curl -X POST http://192.168.4.1/config
+ -H "Content-Type: application/json" -d '{"ssid":"MiRed","password":"Secreta123"}'
+
+GET /reset
+Borra credenciales almacenadas y reinicia en modo AP.
+Ejemplo: curl http://192.168.4.1/reset
+
+Base URL sugerida para Postman
+
+Modo AP: http://192.168.4.1
+
+Modo STA: http://<ip_asignada_por_router>
+
+Diagrama de Arquitectura
+
+[Inserta aquí la imagen del diagrama, por ejemplo: diagrams/architecture_esp32_wifi.png]
+
 ## Explicación de la Implementación
 
-- **`SpringBootRabbitMqApplication`**  
-  Punto de entrada de Spring Boot.
+main.ino
+Lógica principal del firmware: lectura/escritura de credenciales, conmutación entre AP/STA, arranque de servidor HTTP, endpoints y manejo del botón de reset.
 
-- **`PublisherConfig`**  
-  Define la `Queue` usando la propiedad `sacavix.queue.name`.
+Servidor HTTP embebido
+Rutas:
+• GET / → página de formulario de configuración (HTML embebido o servido desde SPIFFS/LittleFS)
+• POST /config → guarda ssid/password en EEPROM/NVS y reinicia
+• GET /status → JSON con {ssid, connected}
+• GET /reset → borra credenciales y reinicia en AP
 
-- **`Publisher`**  
-  Componente que publica mensajes en la cola con `RabbitTemplate`.
+Persistencia (EEPROM o NVS/Preferences)
+Almacena de forma no volátil el SSID y la contraseña. Alternativa: SPIFFS/LittleFS si se requieren archivos.
 
-- **`DummyController`**  
-  Expone el endpoint **POST /test** que crea un `Pedido` y lo envía.
+Gestor de WiFi (FSM)
+Estados: BOOT → CHECK_CREDENTIALS → (AP_MODE | CONNECTING) → CONNECTED.
+Transiciones por timeout de conexión, error de autenticación o petición de reset.
 
-- **`DummyService`**  
-  Encapsula la lógica de envío al `Publisher`.
+Reset de credenciales (GPIO)
+Botón en GPIO0 con INPUT_PULLUP. Mantener presionado aprox. 5 s para borrar credenciales y volver a AP.
 
-- **`Pedido`**  
-  DTO serializable con `id`, `producto`, `cantidad`, `precioTotal` y `fecha`.
+## Validación y Pruebas
 
-- **`Consumer`**  
-  Escucha la cola con `@RabbitListener`, procesa cada `Pedido` y actualiza un inventario concurrente.
+Arranque sin credenciales: verificar SSID ESP32_Config, acceso a http://192.168.4.1
+, guardar y reiniciar.
 
-- **`InventarioController`**  
-  Expone el endpoint **GET /inventario** para consultar el inventario.
+Conexión STA correcta: obtener IP por DHCP y comprobar GET /status con connected=true.
+
+Error/timeout: introducir credenciales inválidas y confirmar retorno a AP para reconfigurar.
+
+Reset: probar botón GPIO0 (~5 s) y GET /reset, verificar regreso a AP.
+
+Endpoints: probar con Postman o curl los tres endpoints en AP y en STA.
+
+Buenas Prácticas
+
+Separación de responsabilidades: WiFi (STA/AP), servidor HTTP, persistencia, GPIO.
+
+Manejo de timeouts y fallback automático a AP en caso de fallo de conexión.
+
+Código comentado y valores por defecto claros (SSID AP, password, timeout).
+
+FSM documentada en diagramas para facilitar mantenimiento y pruebas.
+
+## Seguridad y Consideraciones
+
+En este prototipo la contraseña se guarda en claro para simplicidad académica. Para producción:
+• Preferir NVS/Preferences y/o cifrado/obfuscación en reposo.
+• Cambiar la contraseña del AP de fábrica y limitar la ventana de configuración.
+• Considerar portal cautivo real (redirección automática) si se requiere.
+• Añadir OTA, logs y métricas si el despliegue lo exige.
+
+## Diagramas (placeholders)
+
+# Secuencia (configuración inicial, sin credenciales): diagrams/uml_sequence_config.md
+
+# Secuencia (reset y reconfiguración): diagrams/uml_sequence_reset.md
+
+# Actividad (flujo de configuración web): diagrams/activity_config.md
 
 ## Contribuciones
 Este proyecto fue desarrollado por:
