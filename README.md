@@ -37,59 +37,71 @@ ESP32-WiFi-Dinamico/
 
 ## Dependencias Principales
 
-En **pom.xml** se incluyen:
+En el entorno Arduino/PlatformIO se requieren las siguientes librerías y plataformas (referencia conceptual en formato XML para mantener la sintaxis):
 
 ```xml
 <dependency>
-  <groupId>org.springframework.boot</groupId>
-  <artifactId>spring-boot-starter-amqp</artifactId>
+  <name>ESP32 Arduino Core</name>
+  <source>Board Manager / PlatformIO platform = espressif32</source>
 </dependency>
 <dependency>
-  <groupId>org.springframework.boot</groupId>
-  <artifactId>spring-boot-starter-web</artifactId>
+  <name>WiFi</name>
+  <artifactId>WiFi.h (incluida en el Core ESP32)</artifactId>
 </dependency>
 <dependency>
-  <groupId>io.github.resilience4j</groupId>
-  <artifactId>resilience4j-spring-boot2</artifactId>
+  <name>WebServer</name>
+  <artifactId>WebServer.h (incluida en el Core ESP32)</artifactId>
 </dependency>
 <dependency>
-  <groupId>org.projectlombok</groupId>
-  <artifactId>lombok</artifactId>
-  <optional>true</optional>
+  <name>EEPROM</name>
+  <artifactId>EEPROM.h (incluida en el Core ESP32)</artifactId>
 </dependency>
 <dependency>
-  <groupId>org.springframework.boot</groupId>
-  <artifactId>spring-boot-starter-test</artifactId>
-  <scope>test</scope>
+  <name>Preferences (alternativa)</name>
+  <artifactId>Preferences.h (NVS, opcional)</artifactId>
 </dependency>
+
 ```
 
 ---
 
-## Configuración de RabbitMQ
+## Configuración de Red
 
-Por defecto, la aplicación usa las siguientes propiedades (en `application.properties`):
+Configuración del Dispositivo y Red
+
+Parámetros por defecto del firmware (referenciados conceptualmente con sintaxis de properties):
 
 ```properties
-spring.rabbitmq.host=localhost
-spring.rabbitmq.port=5672
-spring.rabbitmq.username=guest
-spring.rabbitmq.password=guest
+# Punto de acceso para configuración inicial
+ap.ssid=ESP32_Config
+ap.password=12345678
+ap.ip=192.168.4.1
 
-sacavix.queue.name=cola1
+# Tiempo máximo de espera para conexión STA (ms)
+sta.connect.timeout=15000
+
+# GPIO para reset de credenciales (mantener ~5 s)
+reset.gpio=0
+reset.hold.ms=5000
+
+# Persistencia
+storage.mode=EEPROM   # opciones: EEPROM | NVS | SPIFFS
+
 ```
-La consola de administración de RabbitMQ estará disponible en http://localhost:15672 (guest/guest).
-
+El portal de configuración está disponible en http://192.168.4.1/ cuando el dispositivo está en modo AP.
 ---
 
 ## Endpoints HTTP
 
-- **POST /test**  
-  Envía un `Pedido` al microservicio Productor:
+- GET /status
+Devuelve estado de conexión y SSID actual:
   ```bash
-  curl -X POST http://localhost:8080/test \
-       -H "Content-Type: application/json" \
-       -d '{"producto":"Tablet","cantidad":2}'
+ # En modo AP
+curl http://192.168.4.1/status
+
+# En modo STA (usar IP asignada por el router)
+curl http://<ip_router_asignada>/status
+
   ```
   Responde con el nombre y cantidad del pedido o error si el Circuit Breaker está abierto.
   --> Para terminos practicos y de simulación el Circuit Breaker toma como un error la recepcion de una 'laptop' como tipo de producto.
