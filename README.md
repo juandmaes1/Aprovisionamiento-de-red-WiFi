@@ -224,7 +224,7 @@ sequenceDiagram
 ```
 # Actividad (flujo de configuración web): diagrams/activity_config.md
 
-```mermaid
+```markdown
 ## Actividad: flujo de configuración web
 ```mermaid
 flowchart TD
