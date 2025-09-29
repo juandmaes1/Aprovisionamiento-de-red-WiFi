@@ -227,7 +227,7 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     A[Boot ESP32] --> B{¿Credenciales en NVS?}
-    B -- No --> C[Iniciar AP (SSID: ESP32_Config)]
+    B -- No --> C[Iniciar AP SSID: ESP32_Config]
     C --> D[Usuario se conecta al AP]
     D --> E[Usuario abre http://192.168.4.1/]
     E --> F[Formulario: SSID + password]
@@ -235,16 +235,18 @@ flowchart TD
     G --> H{¿Datos válidos?}
     H -- No --> E
     H -- Sí --> I[Guardar en NVS]
-    I --> J[ESP.restart()]
-    J --> K[WiFi.begin(ssid, password)]
-    K --> L{¿Conectado (WL_CONNECTED)?}
+    I --> J[Reiniciar ESP]
+    J --> K[Iniciar WiFi con ssid y password]
+    K --> L{¿Conectado WL_CONNECTED?}
     L -- Sí --> M[Exponer /status y /reset]
     L -- No --> C
 
-    M --> N{¿Reset solicitado? (GPIO0 ~5s o GET /reset)}
+    %% Acciones de reconfiguración
+    M --> N{¿Reset solicitado? GPIO0 ~5s o GET /reset}
     N -- Sí --> O[Borrar NVS y reiniciar en AP]
     O --> C
     N -- No --> P[Operación normal en STA]
+
 
 ```
 
