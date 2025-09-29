@@ -1,191 +1,145 @@
-# Aprovisionamiento-de-red-WiFi
-Configuración Dinámica de WiFi en ESP32 (Arduino)
+# Comunicación entre Microservicios usando RabbitMQ como Broker de Mensajes
+
+## Descripción del Proyecto
+Configuración Dinámica de WiFi en ESP32 con Portal Web Local
 Descripción del Proyecto
 
-Este proyecto demuestra cómo un ESP32 permite la configuración dinámica de la red WiFi sin necesidad de reprogramar el dispositivo. Se ofrece una interfaz web local (modo AP) para capturar SSID y contraseña, se persisten las credenciales en memoria no volátil (EEPROM/NVS), y el sistema intenta la reconexión automática en modo STA. Además, se exponen endpoints HTTP para consultar estado, configurar y restablecer, y se incluye un mecanismo físico de reset mediante botón.
+Este proyecto demuestra cómo un ESP32 permite configurar la red WiFi sin reprogramar el dispositivo, usando una interfaz web local servida en modo AP y persistiendo credenciales en memoria no volátil (EEPROM/NVS). El firmware conmuta entre AP/STA según la disponibilidad de credenciales y expone endpoints HTTP para estado, configuración y restablecimiento.
 
-En el primer arranque (o si no hay credenciales), el ESP32 inicia como punto de acceso (AP), sirviendo una página para configurar la red.
+En primer arranque (o sin credenciales), el ESP32 inicia en modo AP, publica un formulario para ingresar SSID y password y guarda en memoria no volátil.
 
-Tras guardar credenciales, el dispositivo reinicia y hace WiFi.begin en modo STA; ante error/timeout, vuelve a AP para reconfiguración.
+Tras guardar, reinicia y se conecta en modo STA; si hay error/timeout, retorna a AP para reconfiguración.
 
-Se incluyen endpoints REST (/status, /config, /reset) y una colección Postman para pruebas.
+Existen endpoints REST: /status, /config y /reset, además de un botón físico (GPIO) para borrar credenciales.
 
-El código está desarrollado en Arduino (C/C++) y sigue buenas prácticas de diseño y documentación.
+## Estructura del Proyecto
 
-Estructura del Proyecto
+```plaintext
 ESP32-WiFi-Dinamico/
-├─ README.md                         # Este documento
-├─ src/
-│  └─ main.ino                       # Código fuente principal (Arduino)
-├─ docs/
-│  ├─ postman_collection.json        # Colección Postman (opcional)
-│  ├─ IA_conversations.pdf           # Anexos con conversaciones de IA (opcional)
-│  └─ esquematico.pdf                # Esquemático eléctrico (opcional)
-└─ diagrams/
-   ├─ uml_sequence_config.md         # [placeholder] Secuencia: configuración inicial
-   ├─ uml_sequence_reset.md          # [placeholder] Secuencia: reset y reconfiguración
-   ├─ state_machine.md               # [placeholder] Diagrama de estados (FSM)
-   ├─ components.md                  # [placeholder] Diagrama de componentes
-   └─ activity_config.md             # [placeholder] Actividad: flujo configuración web
+├── README.md                                   # Documentación del proyecto
+├── src
+│   └── main.ino                                # Firmware (Arduino)
+├── data/                                       # (Opcional) Archivos para SPIFFS/LittleFS
+├── docs
+│   ├── postman_collection.json                 # Colección Postman para probar endpoints
+│   ├── IA_conversations.pdf                    # Anexos con conversaciones de IA
+│   └── esquematico.pdf                         # Esquemático eléctrico (botón reset y conexiones)
+└── diagrams
+    ├── uml_sequence_config.md                  # Diagrama de secuencia: configuración inicial
+    ├── uml_sequence_reset.md                   # Diagrama de secuencia: reset y reconfiguración
+    ├── state_machine.md                        # Diagrama de estados (FSM)
+    ├── components.md                           # Diagrama de componentes (arquitectura lógica)
+    └── activity_config.md                      # Diagrama de actividad: flujo de configuración web
+
+```
+
+---
+
+## Dependencias Principales
+
+En **pom.xml** se incluyen:
+
+```xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-amqp</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+<dependency>
+  <groupId>io.github.resilience4j</groupId>
+  <artifactId>resilience4j-spring-boot2</artifactId>
+</dependency>
+<dependency>
+  <groupId>org.projectlombok</groupId>
+  <artifactId>lombok</artifactId>
+  <optional>true</optional>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-test</artifactId>
+  <scope>test</scope>
+</dependency>
+```
+
+---
+
+## Configuración de RabbitMQ
+
+Por defecto, la aplicación usa las siguientes propiedades (en `application.properties`):
+
+```properties
+spring.rabbitmq.host=localhost
+spring.rabbitmq.port=5672
+spring.rabbitmq.username=guest
+spring.rabbitmq.password=guest
+
+sacavix.queue.name=cola1
+```
+La consola de administración de RabbitMQ estará disponible en http://localhost:15672 (guest/guest).
+
+---
+
+## Endpoints HTTP
+
+- **POST /test**  
+  Envía un `Pedido` al microservicio Productor:
+  ```bash
+  curl -X POST http://localhost:8080/test \
+       -H "Content-Type: application/json" \
+       -d '{"producto":"Tablet","cantidad":2}'
+  ```
+  Responde con el nombre y cantidad del pedido o error si el Circuit Breaker está abierto.
+  --> Para terminos practicos y de simulación el Circuit Breaker toma como un error la recepcion de una 'laptop' como tipo de producto.
+
+- **GET /inventario**  
+  Obtiene el inventario actualizado por el Consumidor:
+  ```bash
+  curl http://localhost:8080/inventario
+  ```
+
+Se puede acceder a las interfaces (UI's) en:
+- http://localhost:8080/test.html
+- http://localhost:8080/inventario.html
+
+---
+
+## Diagrama de Arquitectura
+
+![Arquitectura RabbitMQ Microservicios](architecturarabbitmq.png)
+
+---
+
+## Explicación de la Implementación
+
+- **`SpringBootRabbitMqApplication`**  
+  Punto de entrada de Spring Boot.
+
+- **`PublisherConfig`**  
+  Define la `Queue` usando la propiedad `sacavix.queue.name`.
 
-Librerías y Dependencias
+- **`Publisher`**  
+  Componente que publica mensajes en la cola con `RabbitTemplate`.
 
-Arduino Core para ESP32 (Board Manager).
+- **`DummyController`**  
+  Expone el endpoint **POST /test** que crea un `Pedido` y lo envía.
 
-Librerías estándar:
+- **`DummyService`**  
+  Encapsula la lógica de envío al `Publisher`.
 
-WiFi.h (conectividad STA/AP).
+- **`Pedido`**  
+  DTO serializable con `id`, `producto`, `cantidad`, `precioTotal` y `fecha`.
 
-WebServer.h (servidor HTTP embebido).
+- **`Consumer`**  
+  Escucha la cola con `@RabbitListener`, procesa cada `Pedido` y actualiza un inventario concurrente.
 
-EEPROM.h (persistencia simple de SSID/Password).
+- **`InventarioController`**  
+  Expone el endpoint **GET /inventario** para consultar el inventario.
 
-Nota: Puede migrarse a Preferences (NVS) o LittleFS/SPIFFS si se requiere mayor robustez.
-
-Requisitos Funcionales Implementados
-
-Arranque en modo AP si no hay credenciales almacenadas.
-
-Interfaz web local para ingresar SSID/contraseña (formulario en /).
-
-Persistencia de credenciales en EEPROM (adaptable a NVS/SPIFFS).
-
-Reconexión automática en modo STA con manejo de timeout.
-
-Endpoints HTTP para status, config, reset.
-
-Mecanismo de restablecimiento por botón físico (GPIO) o por endpoint.
-
-Documentación técnica y diagramas (marcadores incluidos).
-
-Colección Postman para validación de endpoints.
-
-Instalación y Ejecución
-
-Preparación del entorno
-
-Instalar Arduino IDE 2.x o PlatformIO.
-
-Instalar el ESP32 Arduino Core en el Gestor de Tarjetas.
-
-Seleccionar la placa ESP32 y el puerto correspondiente.
-
-Cargar el firmware
-
-Abrir src/main.ino.
-
-Compilar y subir el sketch al ESP32.
-
-Primer uso (sin credenciales)
-
-El dispositivo expone una red:
-
-SSID: ESP32_Config
-
-Password: 12345678
-
-Conectarse desde el navegador a http://192.168.4.1/ y completar el formulario.
-
-El ESP32 reiniciará y tratará de conectarse a la red configurada en modo STA.
-
-Reconfiguración
-
-Mantener presionado el botón en GPIO0 ~5 segundos para borrar credenciales y volver a modo AP, o
-
-Invocar GET /reset.
-
-Endpoints HTTP
-
-Base URL
-
-Modo AP: http://192.168.4.1
-
-Modo STA: http://<ip_asignada_por_router>
-
-Método	Ruta	Headers	Query/Payload	Respuesta (200)
-GET	/status	Content-Type: application/json	—	`{"ssid":"<ssid>","connected":true
-POST	/config	application/x-www-form-urlencoded o application/json	ssid, password (en body)	{"status":"Credenciales guardadas, reiniciando..."}
-GET	/reset	Content-Type: application/json	—	{"status":"Credenciales borradas"} y luego reinicio
-
-Ejemplos con curl
-
-# Estado (AP o STA)
-curl http://192.168.4.1/status
-
-# Configuración (form URL-encoded)
-curl -X POST -d "ssid=MiRed&password=Secreta123" http://192.168.4.1/config
-
-# Configuración (JSON)
-curl -X POST -H "Content-Type: application/json" \
-     -d '{"ssid":"MiRed","password":"Secreta123"}' \
-     http://192.168.4.1/config
-
-# Reset remoto
-curl http://192.168.4.1/reset
-
-Validación Funcional
-
-Arranque sin credenciales: aparición del AP ESP32_Config, acceso a portal, guardado en EEPROM, reinicio.
-
-Conexión STA correcta: obtención de IP por DHCP, respuesta positiva en /status.
-
-Error/timeout de conexión: retorno automático a modo AP para reconfigurar.
-
-Reset: botón físico o GET /reset retorna a modo AP y borra credenciales.
-
-Buenas Prácticas de Ingeniería
-
-Código comentado y separación de responsabilidades: WiFi (STA/AP), HTTP, persistencia, GPIO.
-
-Manejo de timeouts en conexión y fallback a AP.
-
-Documentación de endpoints, estructura y flujo de uso.
-
-Diagrama de estados (FSM) que guía el comportamiento del gestor de WiFi.
-
-Seguridad y Consideraciones
-
-La contraseña se almacena en texto claro en EEPROM por simplicidad académica. Para producción:
-
-Usar NVS/Preferences y/o cifrado/obfuscación en reposo.
-
-Limitar el tiempo de exposición del AP y fortificar la contraseña del AP.
-
-Implementar portal cautivo real si se requiere redirección automática.
-
-Considerar OTA y logs remotos para mantenimiento.
-
-Diagramas (placeholders)
-
-Secuencia: configuración inicial (sin credenciales)
-diagrams/uml_sequence_config.md ← insertar aquí el diagrama
-
-Secuencia: reset y reconfiguración
-diagrams/uml_sequence_reset.md ← insertar aquí el diagrama
-
-Diagrama de estados (FSM)
-diagrams/state_machine.md ← insertar aquí el diagrama
-
-Diagrama de componentes
-diagrams/components.md ← insertar aquí el diagrama
-
-Diagrama de actividad: flujo de configuración web
-diagrams/activity_config.md ← insertar aquí el diagrama
-
-Colección Postman
-
-Archivo sugerido: docs/postman_collection.json
-
-Variables recomendadas:
-
-base_url_ap = http://192.168.4.1
-
-base_url_sta = http://<ip_asignada_por_router>
-
-Requests:
-
-GET {{base_url}}/status
-
-POST {{base_url}}/config (body x-www-form-urlencoded o raw JSON)
-
-GET {{base_url}}/reset
+## Contribuciones
+Este proyecto fue desarrollado por:
+- Nicolas Rodrigues
+- Juan Diego Martinez
+- Camilo Otalora
