@@ -185,11 +185,71 @@ En este prototipo la contraseña se guarda en claro para simplicidad académica.
 
 ## Diagramas (placeholders)
 
-# Secuencia (configuración inicial, sin credenciales): diagrams/uml_sequence_config.md
+# Diagramas del Proyecto
 
-# Secuencia (reset y reconfiguración): diagrams/uml_sequence_reset.md
+## Secuencia: configuración inicial (sin credenciales)
+```mermaid
+sequenceDiagram
+    autonumber
+    title Configuración inicial sin credenciales (ESP32)
 
+    actor Usuario as Usuario final
+    participant ESP as ESP32 (Firmware)
+    participant NVS as EEPROM/NVS
+    participant AP as AP + Servidor HTTP
+    participant Router as Router WiFi
+
+    Note over ESP: Boot
+    ESP->>NVS: Leer SSID/Password
+    alt Sin credenciales
+        ESP->>AP: Iniciar modo AP (SSID: ESP32_Config, Pass: 12345678)
+        Usuario->>AP: Conectarse al AP
+        Usuario->>AP: GET /
+        AP-->>Usuario: Formulario HTML (SSID, password)
+        Usuario->>AP: POST /config {ssid, password}
+        AP->>NVS: Guardar credenciales
+        AP-->>Usuario: 200 OK {"status":"reiniciando"}
+        AP->>ESP: Solicitar reinicio (ESP.restart)
+        ESP->>Router: WiFi.begin(ssid, password)
+        Router-->>ESP: DHCP → IP asignada
+        ESP-->>Usuario: (Opcional) /status con connected=true
+    else Con credenciales
+        ESP->>Router: WiFi.begin(ssid, password)
+        Router-->>ESP: DHCP → IP asignada
+    end
+
+    Usuario->>ESP: GET /status
+    ESP-->>Usuario: {"ssid":"...", "connected":true|false, "ip":"..."}
+
+```
 # Actividad (flujo de configuración web): diagrams/activity_config.md
+
+```markdown
+## Actividad: flujo de configuración web
+```mermaid
+flowchart TD
+    title Flujo de configuración vía web (ESP32)
+
+    A[Boot ESP32] --> B{¿Credenciales en NVS?}
+    B -- No --> C[Iniciar AP (SSID: ESP32_Config)]
+    C --> D[Usuario se conecta al AP]
+    D --> E[Usuario abre http://192.168.4.1/]
+    E --> F[Formulario: SSID + password]
+    F --> G[POST /config]
+    G --> H{¿Datos válidos?}
+    H -- No --> E
+    H -- Sí --> I[Guardar en NVS]
+    I --> J[ESP.restart()]
+    J --> K[WiFi.begin(ssid, password)]
+    K --> L{¿Conectado (WL_CONNECTED)?}
+    L -- Sí --> M[Exponer /status y /reset]
+    L -- No --> C
+
+    M --> N{¿Reset solicitado? (GPIO0 ~5s o GET /reset)}
+    N -- Sí --> O[Borrar NVS y reiniciar en AP]
+    O --> C
+    N -- No --> P[Operación normal en STA]
+```
 
 ## Contribuciones
 Este proyecto fue desarrollado por:
