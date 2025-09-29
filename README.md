@@ -226,8 +226,6 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    title Flujo de configuración vía web (ESP32)
-
     A[Boot ESP32] --> B{¿Credenciales en NVS?}
     B -- No --> C[Iniciar AP (SSID: ESP32_Config)]
     C --> D[Usuario se conecta al AP]
@@ -247,6 +245,7 @@ flowchart TD
     N -- Sí --> O[Borrar NVS y reiniciar en AP]
     O --> C
     N -- No --> P[Operación normal en STA]
+
 ```
 
 ## Contribuciones
