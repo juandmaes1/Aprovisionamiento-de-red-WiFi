@@ -252,6 +252,6 @@ flowchart TD
 
 ## Contribuciones
 Este proyecto fue desarrollado por:
-- Nicolas Rodrigues
+- Nicolas Rodriguez
 - Juan Diego Martinez
 - Camilo Otalora
