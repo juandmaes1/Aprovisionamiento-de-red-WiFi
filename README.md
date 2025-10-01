@@ -12,7 +12,22 @@ Tras guardar, reinicia y se conecta en modo STA; si hay error/timeout, retorna a
 
 Existen endpoints REST: /status, /config y /reset, además de un botón físico (GPIO) para borrar credenciales.
 
+<img width="720" height="1600" alt="image" src="https://github.com/user-attachments/assets/bbbcb2a2-fd37-4756-adaf-398230a2d548" />
 
+
+<img width="720" height="1600" alt="image" src="https://github.com/user-attachments/assets/967e8d8e-57f5-4953-aec7-935f171ed8c1" />
+
+<img width="1080" height="512" alt="image" src="https://github.com/user-attachments/assets/a6388ac5-76c0-47ff-99ce-585dd1e89d69" />
+
+<img width="1211" height="682" alt="image" src="https://github.com/user-attachments/assets/61085ad3-5598-4d8e-abb7-90f7eba00625" />
+
+<img width="1280" height="544" alt="image" src="https://github.com/user-attachments/assets/50945510-9ee8-49d0-b283-2335bd58e82b" />
+
+<img width="1280" height="630" alt="image" src="https://github.com/user-attachments/assets/ec55b5c4-84e4-406f-ad4c-af9bb80509bb" />
+
+
+## Funcionamiento Video 
+https://youtu.be/_P0HO1wJ0PQ?si=Xp6m__N9iCVR4Ddc
 
 ## Dependencias Principales
 
