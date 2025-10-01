@@ -12,28 +12,7 @@ Tras guardar, reinicia y se conecta en modo STA; si hay error/timeout, retorna a
 
 Existen endpoints REST: /status, /config y /reset, además de un botón físico (GPIO) para borrar credenciales.
 
-## Estructura del Proyecto
 
-```plaintext
-ESP32-WiFi-Dinamico/
-├── README.md                                   # Documentación del proyecto
-├── src
-│   └── main.ino                                # Firmware (Arduino)
-├── data/                                       # (Opcional) Archivos para SPIFFS/LittleFS
-├── docs
-│   ├── postman_collection.json                 # Colección Postman para probar endpoints
-│   ├── IA_conversations.pdf                    # Anexos con conversaciones de IA
-│   └── esquematico.pdf                         # Esquemático eléctrico (botón reset y conexiones)
-└── diagrams
-    ├── uml_sequence_config.md                  # Diagrama de secuencia: configuración inicial
-    ├── uml_sequence_reset.md                   # Diagrama de secuencia: reset y reconfiguración
-    ├── state_machine.md                        # Diagrama de estados (FSM)
-    ├── components.md                           # Diagrama de componentes (arquitectura lógica)
-    └── activity_config.md                      # Diagrama de actividad: flujo de configuración web
-
-```
-
----
 
 ## Dependencias Principales
 
