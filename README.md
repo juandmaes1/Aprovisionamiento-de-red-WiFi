@@ -89,12 +89,6 @@ El portal de configuración está disponible en http://192.168.4.1/ cuando el di
 
 
 
-## Diagrama de Arquitectura
-
-![Arquitectura RabbitMQ Microservicios](architecturarabbitmq.png)
-
----
-
 Endpoints HTTP
 
 GET /status
